@@ -3,3 +3,4 @@
 /bin
 /obj
 /sitemap.xml
+*.sqlite

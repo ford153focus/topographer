@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -11,7 +10,7 @@ namespace topographer
 {
     class Program
     {
-        static void Main(string[] args)
+        public static void Main(string[] args)
         {
             // Define cli options parser
             var app = new CommandLineApplication();
@@ -44,18 +43,19 @@ namespace topographer
             var web = new HtmlWeb();
             var db = LinkContext.GetInstance();
 
-            db.Links.Add((new Link {Url = Config.targetHost}));
+            var entity = new Link {Url = Config.targetHost};
+            db.Links.Add(entity);
             db.SaveChanges();
 
             while (db.Links.Count(link => !link.IsParsed) > 0)
             {
-                Parallel.ForEach(db.Links.Where(link => !link.IsParsed), (currentLink) =>
+                Parallel.ForEach(db.Links.Where(link => !link.IsParsed), currentLink =>
                 {
                     Console.WriteLine("Parsing {0}", currentLink.Url);
                     var doc = web.Load(currentLink.Url); // Load url from order
 
                     // Grab and parse all links from loaded page
-                    Parallel.ForEach(doc.DocumentNode.SelectNodes("//a"), (freshLink) =>
+                    Parallel.ForEach(doc.DocumentNode.SelectNodes("//a"), freshLink =>
                     {
                         string freshLinkHref = freshLink.GetAttributeValue("href", ""); // Extract link from tag
                         var freshLinkUri = new Uri(indexUrlUri, freshLinkHref); // Convert relative links to absolute
@@ -64,7 +64,8 @@ namespace topographer
                         if (db.Links.Count(link => link.Url == freshLinkUri.AbsoluteUri) > 0) return; // Check existence in db - to avoid duplicates
 
                         Console.WriteLine("Adding {0}", freshLinkUri.AbsoluteUri);
-                        db.Links.Add((new Link {Url = freshLinkUri.AbsoluteUri})); // Save link to database
+                        var link1 = new Link {Url = freshLinkUri.AbsoluteUri};
+                        db.Links.Add(link1); // Save link to database
                     });
                     db.Links.Single(link => link == currentLink).IsParsed = true; // Mark link as parsed
                     db.SaveChanges();
@@ -83,7 +84,7 @@ namespace topographer
                 var urlset = (XmlElement) sitemap.AppendChild(sitemap.CreateElement("urlset"));
                 urlset.SetAttribute("xmlns", "http://www.sitemaps.org/schemas/sitemap/0.9");
 
-                Parallel.ForEach(db.Links, (link) =>
+                Parallel.ForEach(db.Links, link =>
                 {
                     var url = (XmlElement) urlset.AppendChild(sitemap.CreateElement("url"));
                     var loc = (XmlElement) url.AppendChild(sitemap.CreateElement("loc"));
